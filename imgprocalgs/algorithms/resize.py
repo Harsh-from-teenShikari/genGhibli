@@ -8,17 +8,18 @@ import functools
 from PIL import Image as PillowImage
 from imgprocalgs.algorithms.utilities import Image, ImageData
 from imgprocalgs.visualisation.server import App
+from imgprocalgs.algorithms.base import BaseAlgorithm
 
 
-class ImageResizer(metaclass=abc.ABCMeta):
+class ImageResizer(BaseAlgorithm):
     """ Base class of resizing algorithms """
-    def __init__(self, image_path: str, scale: float):
-        self.image = Image(image_path)
+    def __init__(self, image_path: str, destination_path: str, scale: float):
+        super().__init__(image_path, destination_path)
         self.scale = scale
         self.new_image = None
 
     @abc.abstractmethod
-    def process(self, dest_path: str):
+    def process(self):
         pass
 
     def get_new_image(self, widht, height):
@@ -30,7 +31,7 @@ class NearestNeigbhour(ImageResizer):
     Nearest neighbour algorithm
     """
 
-    def process(self, dest_path: str):
+    def process(self):
         x_src, y_src = self.image.get_size()
         x_dest, y_dest = int(x_src * self.scale), int(y_src * self.scale)
         ratio_x, ratio_y = x_src / x_dest, y_src / y_dest
@@ -42,7 +43,7 @@ class NearestNeigbhour(ImageResizer):
                 new_img_x, new_img_y = int(x * ratio_x), int(y * ratio_y)
                 new_image_pixels[x, y] = self.image.pixels[new_img_x, new_img_y]
 
-        self.new_image.save(dest_path)
+        self.new_image.save(self.destination_path)
 
 
 class Neighbour:
@@ -74,14 +75,14 @@ class BilinearInterpolation(ImageResizer):
     """
     Bilinear interpolation algorithm
     """
-    def __init__(self, image_path: str, scale: float):
-        super().__init__(image_path, scale)
+    def __init__(self, image_path: str, destination_path: str, scale: float):
+        super().__init__(image_path, destination_path, scale)
         self.neigh1 = None
         self.neigh2 = None
         self.neigh3 = None
         self.neigh4 = None
 
-    def process(self, dest_path: str):
+    def process(self):
         x_src, y_src = self.image.get_size()
         x_dest, y_dest = int(x_src * self.scale), int(y_src * self.scale)
         ratio_x, ratio_y = x_src / x_dest, y_src / y_dest
@@ -114,7 +115,7 @@ class BilinearInterpolation(ImageResizer):
                 blue = (1 - dy) * (1 - dx) * self.neigh1.blue + (1 - dy) * dx * self.neigh2.blue + (1 - dx) * dy * self.neigh3.blue + dx * dy * self.neigh4.blue
                 dest_pixels[x, y] = (int(red), int(green), int(blue))
 
-        self.new_image.save(dest_path)
+        self.new_image.save(self.destination_path)
 
 
 class BicubicInterpolation(ImageResizer):
@@ -123,14 +124,14 @@ class BicubicInterpolation(ImageResizer):
     """
     A = -0.75
 
-    def __init__(self, image_path: str, scale: float):
-        super().__init__(image_path, scale)
+    def __init__(self, image_path: str, destination_path: str, scale: float):
+        super().__init__(image_path, destination_path, scale)
 
         self.neighbours = []  # list for 4x4 neighbourhood
         self.x_coofs = None
         self.y_coofs = None
 
-    def process(self, dest_path: str):
+    def process(self):
         """
         Implementing coefficients - inspired by openCV project
         const float A = -0.75f;
@@ -182,7 +183,7 @@ class BicubicInterpolation(ImageResizer):
                 red, green, blue = self._interpolate('red'), self._interpolate('green'), self._interpolate('blue')
                 dest_pixels[x, y] = (int(red), int(green), int(blue))
 
-        self.new_image.save(dest_path)
+        self.new_image.save(self.destination_path)
 
     def get_coefficients(self, x):
         first = ((self.A*(x + 1) - 5*self.A)*(x + 1) + 8*self.A)*(x + 1) - 4*self.A
@@ -202,14 +203,14 @@ class BicubicInterpolation(ImageResizer):
         return e * xr1 + f * xr2 + g * xr3 + h * xr4
 
 
-neigbhour_2 = functools.partial(NearestNeigbhour.process, NearestNeigbhour("tests/data/bird.jpg", 2), "data/n_2.jpg")
-neigbhour_4 = functools.partial(NearestNeigbhour.process, NearestNeigbhour("tests/data/bird.jpg", 4), "data/n_4.jpg")
+neigbhour_2 = functools.partial(NearestNeigbhour("tests/data/bird.jpg", "data/n_2.jpg", 2).process)
+neigbhour_4 = functools.partial(NearestNeigbhour("tests/data/bird.jpg", "data/n_4.jpg", 4).process)
 
-bilinear_2 = functools.partial(BilinearInterpolation.process, BilinearInterpolation("tests/data/bird.jpg", 2), "data/bl_2.jpg")
-bilinear_4 = functools.partial(BilinearInterpolation.process, BilinearInterpolation("tests/data/bird.jpg", 4), "data/bl_4.jpg")
+bilinear_2 = functools.partial(BilinearInterpolation("tests/data/bird.jpg", "data/bl_2.jpg", 2).process)
+bilinear_4 = functools.partial(BilinearInterpolation("tests/data/bird.jpg", "data/bl_4.jpg", 4).process)
 
-bicubic_2 = functools.partial(BicubicInterpolation.process, BicubicInterpolation("tests/data/bird.jpg", 2), "data/bc_2.jpg")
-bicubic_4 = functools.partial(BicubicInterpolation.process, BicubicInterpolation("tests/data/bird.jpg", 4), "data/bc_4.jpg")
+bicubic_2 = functools.partial(BicubicInterpolation("tests/data/bird.jpg", "data/bc_2.jpg", 2).process)
+bicubic_4 = functools.partial(BicubicInterpolation("tests/data/bird.jpg", "data/bc_4.jpg", 4).process)
 
 
 def example_nearest_neighbour(app: App):

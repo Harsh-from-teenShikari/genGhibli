@@ -18,16 +18,16 @@ class BaseTestResize(TestCase):
 class TestNearestNeighbour(BaseTestResize):
     def test_resize(self):
         self.OUTPUT_FILE = 'tests/data/desert_resized_nearest_neighbour.jpg'
-        algos = resize.NearestNeigbhour('tests/data/desert.jpg', 2)
-        algos.process(self.OUTPUT_FILE)
+        algos = resize.NearestNeigbhour('tests/data/desert.jpg', self.OUTPUT_FILE, 2)
+        algos.process()
 
         img = self.open_image()
         self.assertEqual((2048, 1536), img.size)
 
     def test_resize_bird(self):
         self.OUTPUT_FILE = 'tests/data/bird_resized_nearest_neighbour.jpg'
-        algos = resize.NearestNeigbhour('tests/data/bird.jpg', 4)
-        algos.process(self.OUTPUT_FILE)
+        algos = resize.NearestNeigbhour('tests/data/bird.jpg', self.OUTPUT_FILE, 4)
+        algos.process()
 
         img = self.open_image()
         self.assertEqual((896, 900), img.size)
@@ -36,16 +36,16 @@ class TestNearestNeighbour(BaseTestResize):
 class TestBilinearInterpolation(BaseTestResize):
     def test_resize_desert(self):
         self.OUTPUT_FILE = 'tests/data/desert_resized_bilinear.jpg'
-        algos = resize.BilinearInterpolation('tests/data/desert.jpg', 2)
-        algos.process(self.OUTPUT_FILE)
+        algos = resize.BilinearInterpolation('tests/data/desert.jpg', self.OUTPUT_FILE, 2)
+        algos.process()
 
         img = self.open_image()
         self.assertEqual((2048, 1536), img.size)
 
     def test_resize_bird(self):
         self.OUTPUT_FILE = 'tests/data/bird_resized_bilinear.jpg'
-        algos = resize.BilinearInterpolation('tests/data/bird.jpg', 4)
-        algos.process(self.OUTPUT_FILE)
+        algos = resize.BilinearInterpolation('tests/data/bird.jpg', self.OUTPUT_FILE, 4)
+        algos.process()
 
         img = self.open_image()
         self.assertEqual((896, 900), img.size)
@@ -53,7 +53,7 @@ class TestBilinearInterpolation(BaseTestResize):
 
 class TestBicubicInterpolation(BaseTestResize):
     def test_coeficient(self):
-        algo = resize.BicubicInterpolation('tests/data/bird.jpg', 4)
+        algo = resize.BicubicInterpolation('tests/data/bird.jpg', "dest_path", 4)
         cofs = algo.get_coefficients(10)
         self.assertEqual(-607.5, cofs[0])
         self.assertEqual(1026.0,  cofs[1])
@@ -62,8 +62,8 @@ class TestBicubicInterpolation(BaseTestResize):
 
     def test_resize_bird(self):
         self.OUTPUT_FILE = 'tests/data/bird_resized_bicubic.jpg'
-        algos = resize.BicubicInterpolation('tests/data/bird.jpg', 2)
-        algos.process(self.OUTPUT_FILE)
+        algos = resize.BicubicInterpolation('tests/data/bird.jpg', self.OUTPUT_FILE, 2)
+        algos.process()
 
         img = self.open_image()
         self.assertEqual((448, 450), img.size)
