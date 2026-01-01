@@ -4,9 +4,10 @@ import os
 
 from PIL import Image as PillowImage
 from imgprocalgs.algorithms.utilities import Image, get_greyscale
+from imgprocalgs.algorithms.base import BaseAlgorithm
 
 
-class FloydSteinberg:
+class FloydSteinberg(BaseAlgorithm):
     """
     Floyd Stainberg algorithm using for reducng grayscale image to black and white.
     Source: https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
@@ -16,16 +17,14 @@ class FloydSteinberg:
     WHITE = "#FFFFFF"
 
     def __init__(self, image_path: str, destination_path: str, factor: int):
+        super().__init__(image_path, destination_path)
         self.min_factor = 0
         self.max_factor = int(get_greyscale(255, 255, 255))  # max greyscale valaue for #FFFFFF
 
         if not self.min_factor < factor < self.max_factor:
             raise ValueError(f"Factor value should be from 0 to {self.max_factor}")
 
-        self.image = Image(image_path)
         self.factor = factor
-
-        self.destination_path = destination_path
 
         #  raw error table and output image
         self.width, self.height = self.image.get_size()
