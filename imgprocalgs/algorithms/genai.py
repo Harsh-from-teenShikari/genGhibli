@@ -54,6 +54,7 @@ class GenAIAlgorithm(BaseAlgorithm):
 class GenAIEnhancement(GenAIAlgorithm):
     """ GenAI based image enhancement """
     def process(self):
+        # 1. Try Replicate API
         try:
             import replicate
             if os.environ.get("REPLICATE_API_TOKEN"):
@@ -78,11 +79,11 @@ class GenAIEnhancement(GenAIAlgorithm):
                         self.download_and_save_image(output)
                     return
         except ImportError:
-            print("Replicate library not found. Falling back to mock.")
+            pass # Library not installed
         except Exception as e:
             print(f"Replicate API failed: {e}. Falling back to mock.")
 
-        # Fallback to mock
+        # 2. Mock Fallback
         output_image = self.mock_genai_process("Image Enhancement")
         output_image = output_image.filter(ImageFilter.SHARPEN)
         output_image.save(self.destination_path)
@@ -92,16 +93,40 @@ class GenAIEnhancement(GenAIAlgorithm):
 class GenAIGhibliConverter(GenAIAlgorithm):
     """ GenAI based image converter to Ghibli style """
     def process(self):
+        prompt = "ghibli style"
+        if self.user_text:
+            prompt = f"{prompt}, {self.user_text}"
+
+        # 1. Try Hugging Face Inference API (Nitrosocke Ghibli)
+        hf_token = os.environ.get("HUGGING_FACE_TOKEN")
+        if hf_token:
+            print("Using Hugging Face Inference API for Ghibli Conversion...")
+            # Updated to new router endpoint
+            api_url = "https://router.huggingface.co/hf-inference/models/nitrosocke/Ghibli-Diffusion"
+            headers = {"Authorization": f"Bearer {hf_token}"}
+
+            # Using prompt to generate image (Text-to-Image behavior of this endpoint)
+            payload = {"inputs": prompt}
+
+            try:
+                response = requests.post(api_url, headers=headers, json=payload)
+                if response.status_code == 200:
+                    image_data = BytesIO(response.content)
+                    img = PillowImage.open(image_data)
+                    img.save(self.destination_path)
+                    print(f"Ghibli style image saved to {self.destination_path}")
+                    return
+                else:
+                    print(f"Hugging Face API failed: {response.status_code} {response.text}")
+            except Exception as e:
+                print(f"Hugging Face API request failed: {e}")
+
+        # 2. Try Replicate API (Mirage Ghibli)
         try:
             import replicate
             if os.environ.get("REPLICATE_API_TOKEN"):
                 print("Using Replicate API for Ghibli Conversion...")
-                # Using mirage-ghibli model
                 model = "aaronaftab/mirage-ghibli:166efd159b4138da932522bc5af40d39194033f587d9bdbab1e594119eae3e7f"
-
-                prompt = "GHBLI anime style photo"
-                if self.user_text:
-                    prompt = f"{prompt}, {self.user_text}"
 
                 output = replicate.run(
                     model,
@@ -132,11 +157,11 @@ class GenAIGhibliConverter(GenAIAlgorithm):
                     return
 
         except ImportError:
-             print("Replicate library not found. Falling back to mock.")
+             pass
         except Exception as e:
             print(f"Replicate API failed: {e}. Falling back to mock.")
 
-        # Fallback to mock
+        # 3. Mock Fallback
         output_image = self.mock_genai_process("Convert to Ghibli Style")
         output_image = output_image.filter(ImageFilter.SMOOTH_MORE)
         output_image.save(self.destination_path)
