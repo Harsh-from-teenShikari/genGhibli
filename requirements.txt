@@ -6,3 +6,5 @@ codecov
 coverage
 flask
 numpy
+replicate
+requests

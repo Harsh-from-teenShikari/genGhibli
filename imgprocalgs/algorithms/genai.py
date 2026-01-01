@@ -2,10 +2,12 @@
 import argparse
 import time
 import os
+import requests
+from io import BytesIO
 from imgprocalgs.algorithms.base import BaseAlgorithm
 from imgprocalgs.algorithms.utilities import ImageData
 from imgprocalgs.visualisation.server import App
-from PIL import ImageFilter
+from PIL import Image as PillowImage, ImageFilter
 
 
 class GenAIAlgorithm(BaseAlgorithm):
@@ -29,15 +31,50 @@ class GenAIAlgorithm(BaseAlgorithm):
 
         return self.image.image.copy()
 
+    def download_and_save_image(self, url: str):
+        """ Helper to download image from URL and save it """
+        print(f"Downloading result from {url}...")
+        response = requests.get(url)
+        if response.status_code == 200:
+            image_data = BytesIO(response.content)
+            img = PillowImage.open(image_data)
+            img.save(self.destination_path)
+            print(f"Image saved to {self.destination_path}")
+        else:
+            raise Exception(f"Failed to download image from {url}")
+
 
 class GenAIEnhancement(GenAIAlgorithm):
     """ GenAI based image enhancement """
     def process(self):
+        try:
+            import replicate
+            if os.environ.get("REPLICATE_API_TOKEN"):
+                print("Using Replicate API for Image Enhancement...")
+                # Using Real-ESRGAN for face/general enhancement
+                model = "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73ab41b2ee43ad4095a1c"
+
+                output = replicate.run(
+                    model,
+                    input={
+                        "image": open(self.image_path, "rb"),
+                        "scale": 2,
+                        "face_enhance": True
+                    }
+                )
+
+                # Output is a URI string
+                if output:
+                    self.download_and_save_image(output)
+                    return
+        except ImportError:
+            print("Replicate library not found. Falling back to mock.")
+        except Exception as e:
+            print(f"Replicate API failed: {e}. Falling back to mock.")
+
+        # Fallback to mock
         output_image = self.mock_genai_process("Image Enhancement")
-
-        # Apply a simple sharpening filter to simulate enhancement visually
         output_image = output_image.filter(ImageFilter.SHARPEN)
-
         output_image.save(self.destination_path)
         print(f"Enhanced image saved to {self.destination_path}")
 
@@ -45,13 +82,43 @@ class GenAIEnhancement(GenAIAlgorithm):
 class GenAIGhibliConverter(GenAIAlgorithm):
     """ GenAI based image converter to Ghibli style """
     def process(self):
+        try:
+            import replicate
+            if os.environ.get("REPLICATE_API_TOKEN"):
+                print("Using Replicate API for Ghibli Conversion...")
+                # Using mirage-ghibli model
+                model = "aaronaftab/mirage-ghibli:166efd159b4138da932522bc5af40d39194033f587d9bdbab1e594119eae3e7f"
+
+                prompt = "ghibli style"
+                if self.user_text:
+                    prompt = f"{prompt}, {self.user_text}"
+
+                output = replicate.run(
+                    model,
+                    input={
+                        "image": open(self.image_path, "rb"),
+                        "prompt": prompt,
+                        "prompt_strength": 0.8
+                    }
+                )
+
+                # Output is list of URIs or single URI depending on model
+                if isinstance(output, list):
+                    url = output[0]
+                else:
+                    url = output
+
+                if url:
+                    self.download_and_save_image(url)
+                    return
+        except ImportError:
+             print("Replicate library not found. Falling back to mock.")
+        except Exception as e:
+            print(f"Replicate API failed: {e}. Falling back to mock.")
+
+        # Fallback to mock
         output_image = self.mock_genai_process("Convert to Ghibli Style")
-
-        # Simulate Ghibli style by boosting saturation/color (simplified)
-        # Using PIL.ImageEnhance could be better but sticking to simple filter for now
-        # or just modifying pixels. Let's just use a smooth filter to make it "cartoonish"
         output_image = output_image.filter(ImageFilter.SMOOTH_MORE)
-
         output_image.save(self.destination_path)
         print(f"Ghibli style image saved to {self.destination_path}")
 
