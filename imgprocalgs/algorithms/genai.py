@@ -43,6 +43,13 @@ class GenAIAlgorithm(BaseAlgorithm):
         else:
             raise Exception(f"Failed to download image from {url}")
 
+    def save_file_output(self, file_output):
+        """ Helper to save file output from Replicate """
+        print(f"Saving result to {self.destination_path}...")
+        with open(self.destination_path, "wb") as file:
+            file.write(file_output.read())
+        print(f"Image saved to {self.destination_path}")
+
 
 class GenAIEnhancement(GenAIAlgorithm):
     """ GenAI based image enhancement """
@@ -63,9 +70,12 @@ class GenAIEnhancement(GenAIAlgorithm):
                     }
                 )
 
-                # Output is a URI string
+                # Output handling
                 if output:
-                    self.download_and_save_image(output)
+                    if hasattr(output, 'read'):
+                        self.save_file_output(output)
+                    else:
+                        self.download_and_save_image(output)
                     return
         except ImportError:
             print("Replicate library not found. Falling back to mock.")
@@ -89,7 +99,7 @@ class GenAIGhibliConverter(GenAIAlgorithm):
                 # Using mirage-ghibli model
                 model = "aaronaftab/mirage-ghibli:166efd159b4138da932522bc5af40d39194033f587d9bdbab1e594119eae3e7f"
 
-                prompt = "ghibli style"
+                prompt = "GHBLI anime style photo"
                 if self.user_text:
                     prompt = f"{prompt}, {self.user_text}"
 
@@ -98,19 +108,29 @@ class GenAIGhibliConverter(GenAIAlgorithm):
                     input={
                         "image": open(self.image_path, "rb"),
                         "prompt": prompt,
-                        "prompt_strength": 0.8
+                        "go_fast": True,
+                        "guidance_scale": 10,
+                        "prompt_strength": 0.77,
+                        "num_inference_steps": 38
                     }
                 )
 
-                # Output is list of URIs or single URI depending on model
-                if isinstance(output, list):
-                    url = output[0]
-                else:
-                    url = output
+                # Output is list of objects/URIs
+                result = None
+                if isinstance(output, list) and len(output) > 0:
+                    result = output[0]
+                elif output:
+                    result = output
 
-                if url:
-                    self.download_and_save_image(url)
+                if result:
+                    if hasattr(result, 'url') and result.url:
+                        self.download_and_save_image(result.url)
+                    elif hasattr(result, 'read'):
+                        self.save_file_output(result)
+                    elif isinstance(result, str):
+                        self.download_and_save_image(result)
                     return
+
         except ImportError:
              print("Replicate library not found. Falling back to mock.")
         except Exception as e:
